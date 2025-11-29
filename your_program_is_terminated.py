@@ -15,24 +15,33 @@ class SimpleEmailServer:
     """
     A simple wrapper client to handle SMTP connections and sending emails.
     """
-    def __init__(self, smtp_host: str, smtp_port: int, sender_email: str, sender_password: str, http_proxy: str = None, https_proxy: str = None):
+    def __init__(self, smtp_host: str, smtp_port: int, sender_email: str, sender_password: str, http_proxy: str = None, https_proxy: str = None, socks_proxy: str = None):
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
         self.sender_email = sender_email
         self.sender_password = sender_password
         self.http_proxy = http_proxy
         self.https_proxy = https_proxy
+        self.socks_proxy = socks_proxy
         self.proxy_info = None
-        if self.http_proxy:
-            self.proxy_info = self._parse_proxy(self.http_proxy)
-        elif self.https_proxy:
-            self.proxy_info = self._parse_proxy(self.https_proxy)
+        try:
+            if self.http_proxy:
+                self.proxy_info = self._parse_proxy(self.http_proxy, 'http')
+            elif self.https_proxy:
+                self.proxy_info = self._parse_proxy(self.https_proxy, 'https')
+            elif self.socks_proxy:
+                self.proxy_info = self._parse_proxy(self.socks_proxy, 'socks')
+        except ValueError as e:
+            print(f"[TERMINATION_MONITOR] Proxy configuration error: {e}. Proxy disabled.")
+            self.proxy_info = None
 
-    def _parse_proxy(self, proxy_url: str):
+    def _parse_proxy(self, proxy_url: str, proxy_type: str):
         from urllib.parse import urlparse
         parsed = urlparse(proxy_url)
+        if not parsed.hostname:
+            raise ValueError(f"Invalid proxy URL: {proxy_url}")
         return {
-            'type': 'http' if parsed.scheme in ['http', 'https'] else 'socks5',
+            'type': proxy_type,
             'host': parsed.hostname,
             'port': parsed.port or 8080
         }
@@ -50,10 +59,11 @@ class SimpleEmailServer:
         try:
             print(f"[TERMINATION_MONITOR] Connecting to SMTP server {self.smtp_host}:{self.smtp_port}...")
             # Set proxy if configured
+            original_socket = socket.socket
             if self.proxy_info:
-                if self.proxy_info['type'] == 'http':
+                if self.proxy_info['type'] in ['http', 'https']:
                     socks.setdefaultproxy(socks.PROXY_TYPE_HTTP, self.proxy_info['host'], self.proxy_info['port'])
-                else:
+                elif self.proxy_info['type'] == 'socks':
                     socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, self.proxy_info['host'], self.proxy_info['port'])
                 socket.socket = socks.socksocket
             # Establish secure connection
@@ -71,6 +81,9 @@ class SimpleEmailServer:
         except Exception as e:
             print(f"[TERMINATION_MONITOR] Failed to send email. Error: {e}")
             return False
+        finally:
+            # Restore original socket
+            socket.socket = original_socket
 
 class termination_monitor:
     """
@@ -82,7 +95,10 @@ class termination_monitor:
                  smtp_host: Optional[str] = None,
                  smtp_port: Optional[int] = None,
                  sender_email: Optional[str] = None,
-                 sender_password: Optional[str] = None):
+                 sender_password: Optional[str] = None,
+                 http_proxy: Optional[str] = None,
+                 https_proxy: Optional[str] = None,
+                 socks_proxy: Optional[str] = None):
         
         # 1. Configuration Priority: Instance Argument > System Environment Variable
         self.recipient_email = recipient_email or os.getenv('TERMINATION_MONITOR_RECIPIENT_EMAIL')
@@ -90,12 +106,13 @@ class termination_monitor:
         self.smtp_port = int(smtp_port or os.getenv('TERMINATION_MONITOR_SMTP_PORT', 587))
         self.sender_email = sender_email or os.getenv('TERMINATION_MONITOR_SENDER_EMAIL')
         self.sender_password = sender_password or os.getenv('TERMINATION_MONITOR_SENDER_PASSWORD')
-        self.http_proxy = os.getenv('TERMINATION_MONITOR_HTTP_PROXY')
-        self.https_proxy = os.getenv('TERMINATION_MONITOR_HTTPS_PROXY')
+        self.http_proxy = http_proxy or os.getenv('TERMINATION_MONITOR_HTTP_PROXY')
+        self.https_proxy = https_proxy or os.getenv('TERMINATION_MONITOR_HTTPS_PROXY')
+        self.socks_proxy = socks_proxy or os.getenv('TERMINATION_MONITOR_SOCKS_PROXY')
 
         self.mailer = None
         if self.sender_email and self.sender_password and self.recipient_email:
-            self.mailer = SimpleEmailServer(self.smtp_host, self.smtp_port, self.sender_email, self.sender_password, http_proxy=self.http_proxy, https_proxy=self.https_proxy)
+            self.mailer = SimpleEmailServer(self.smtp_host, self.smtp_port, self.sender_email, self.sender_password, http_proxy=self.http_proxy, https_proxy=self.https_proxy, socks_proxy=self.socks_proxy)
         else:
             print("[TERMINATION_MONITOR] Warning: Email configuration incomplete. Email alerts will be disabled.")
 
