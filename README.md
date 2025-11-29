@@ -1,6 +1,6 @@
 # Your-Program-is-Terminated
 
-A simple tool lib for **linux** to send notification email when your **Python** progam is terminated.
+A simple tool lib for **Linux** to send notification email when your **Python** progam is terminated.
 
 # Quick Start
 
