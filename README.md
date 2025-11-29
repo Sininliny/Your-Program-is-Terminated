@@ -4,7 +4,7 @@ A simple tool lib for **linux** to send notification email when your **Python** 
 
 # Quick Start
 
-### 1. Download your_program_is_terminated.py to where it will be import
+### 1. Download your_program_is_terminated.py to where it will be imported
 
 ### 2. Import termination_monitor
 
