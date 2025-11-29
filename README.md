@@ -16,7 +16,7 @@ _Install any missing required python packages_
 
 ### 3. Set up config
 
-_Tips: If you're setting a Gmail as sender, please active two-step authority for your gmail account and use the 16 characters **App Password** without spaces as the SENDER PASSWORD. Visit [Sign in with app passwords - Google Account Help](https://support.google.com/accounts/answer/185833?hl=en) for more info._
+_Tips: If you're setting a **Gmail** as sender, please active two-step authority for your gmail account and use the 16 characters **App Password** without spaces as the SENDER PASSWORD. Visit [Sign in with app passwords - Google Account Help](https://support.google.com/accounts/answer/185833?hl=en) for more info._
 
 ##### 3.1 Config by environment variables (Recommended)
 
